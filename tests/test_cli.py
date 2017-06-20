@@ -6,11 +6,11 @@ import time
 import pexpect
 
 
-PRODJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..')
 
 
 def test_cli(tmpdir, monkeypatch):
-    monkeypatch.chdir(PRODJECT_ROOT)
+    monkeypatch.chdir(PROJECT_ROOT)
     notebook_path = tmpdir.join('notebook.py')
 
     notebook_path.write(textwrap.dedent("""\
