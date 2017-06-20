@@ -38,14 +38,14 @@ def make_driver(notebook_path, completer):
         nonlocal name
         nonlocal old_name
 
+        name = input('>>> at {!r}; run: '.format(old_name)).strip()
+        # TODO: handle EOF
+
         with open(notebook_path) as f:
             notebook_text = f.read()
         cells = parse_notebook(notebook_text)
 
         completer.words = list(cells)
-
-        name = input('>>> at {!r}; run: '.format(old_name)).strip()
-        # TODO: handle EOF
 
         if not name.strip():
             name = old_name
