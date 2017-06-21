@@ -57,8 +57,7 @@ class Kernel:
 
         process = self.Process(
             target=self.kernel_loop,
-            args=(kernel_conn, self.make_target),
-            daemon=True)
+            args=(kernel_conn, self.make_target))
         process.start()
 
         while True:
