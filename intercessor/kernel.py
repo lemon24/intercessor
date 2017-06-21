@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
-class Kernel:
+class Kernel(object):
 
     Process = staticmethod(multiprocessing.Process)
     Pipe = staticmethod(multiprocessing.Pipe)

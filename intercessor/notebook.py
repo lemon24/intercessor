@@ -1,6 +1,10 @@
+from __future__ import print_function
+
 import re
 from collections import OrderedDict
 import traceback
+
+from ._compat import input
 
 
 # We need to accomodate this kind of workflow:
@@ -31,14 +35,17 @@ def make_target():
     return target
 
 
+class Namespace(object):
+
+    pass
+
+
 def make_driver(notebook_path, completer):
-    name = old_name = None
+    ns = Namespace()
+    ns.name = ns.old_name = None
 
     def driver(do):
-        nonlocal name
-        nonlocal old_name
-
-        name = input('>>> at {!r}; run: '.format(old_name)).strip()
+        ns.name = input('>>> at {!r}; run: '.format(ns.old_name)).strip()
         # TODO: handle EOF
 
         with open(notebook_path) as f:
@@ -47,12 +54,12 @@ def make_driver(notebook_path, completer):
 
         completer.words = list(cells)
 
-        if not name.strip():
-            name = old_name
+        if not ns.name.strip():
+            ns.name = ns.old_name
         else:
-            old_name = name
+            ns.old_name = ns.name
 
-        do((name, cells[name]))
+        do((ns.name, cells[ns.name]))
 
         return False
 

@@ -1,6 +1,7 @@
 import sys
 import readline
 
+from ._compat import input
 from .kernel import Kernel
 from .notebook import make_target, make_driver
 
@@ -14,7 +15,7 @@ def confirm_terminate():
         return True
 
 
-class Completer:
+class Completer(object):
 
     def __init__(self):
         self.words = []
