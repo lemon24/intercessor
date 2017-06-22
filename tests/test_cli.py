@@ -62,6 +62,6 @@ def test_cli(tmpdir, monkeypatch):
     assert p.isalive()
 
     p.sendintr()
-    time.sleep(.1)
+    time.sleep(1)
     assert not p.isalive()
 

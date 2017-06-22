@@ -11,9 +11,10 @@ class Kernel(object):
     Pipe = staticmethod(multiprocessing.Pipe)
 
 
-    def __init__(self, make_target, driver, confirm_terminate):
+    def __init__(self, make_target, driver, driver_context, confirm_terminate):
         self.make_target = make_target
         self.driver = driver
+        self.driver_context = driver_context
         self.confirm_terminate = confirm_terminate
 
 
@@ -60,13 +61,14 @@ class Kernel(object):
             args=(kernel_conn, self.make_target))
         process.start()
 
-        while True:
-            try:
-                if self.driver(do):
-                    break
-            except KeyboardInterrupt:
-                if self.confirm_terminate():
-                    break
+        with self.driver_context:
+            while True:
+                try:
+                    if self.driver(do):
+                        break
+                except KeyboardInterrupt:
+                    if self.confirm_terminate():
+                        break
 
         try:
             parent_conn.send(None)

@@ -5,6 +5,7 @@ from collections import OrderedDict
 import traceback
 
 from ._compat import input
+from .watch import Alarm
 
 
 # We need to accomodate this kind of workflow:
@@ -45,8 +46,16 @@ def make_driver(notebook_path, completer):
     ns.name = ns.old_name = None
 
     def driver(do):
-        ns.name = input('>>> at {!r}; run: '.format(ns.old_name)).strip()
-        # TODO: handle EOF
+        name = None
+        while not name:
+            try:
+                name = input('>>> at {!r}; run: '.format(ns.old_name)).strip()
+                ns.name = name
+                break
+            except EOFError:
+                print('>>> eof, ignoring for now')
+            except Alarm:
+                print('>>> file changed, should reload notebook')
 
         with open(notebook_path) as f:
             notebook_text = f.read()

@@ -4,6 +4,7 @@ import readline
 from ._compat import input
 from .kernel import Kernel
 from .notebook import make_target, make_driver
+from .watch import watch
 
 
 def confirm_terminate():
@@ -34,10 +35,16 @@ class Completer(object):
 
 
 def main():
+    notebook_path = sys.argv[1]
+
     completer = Completer()
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
-    k = Kernel(make_target, make_driver(sys.argv[1], completer), confirm_terminate)
+    k = Kernel(
+        make_target,
+        make_driver(notebook_path, completer),
+        watch(notebook_path),
+        confirm_terminate)
     k.parent_loop()
 
