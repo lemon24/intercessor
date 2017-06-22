@@ -51,11 +51,14 @@ def watchdog_watch(path):
 
     old_signal_handler = signal.getsignal(signal.SIGALRM)
     signal.signal(signal.SIGALRM, raise_alarm)
-    yield
-    signal.signal(signal.SIGALRM, old_signal_handler)
 
-    observer.stop()
-    observer.join()
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGALRM, old_signal_handler)
+
+        observer.stop()
+        observer.join()
 
 
 @contextlib.contextmanager
@@ -85,11 +88,14 @@ def stat_watch(path):
 
     old_signal_handler = signal.getsignal(signal.SIGALRM)
     signal.signal(signal.SIGALRM, raise_alarm)
-    yield
-    signal.signal(signal.SIGALRM, old_signal_handler)
 
-    ns.done = True
-    t.join()
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGALRM, old_signal_handler)
+
+        ns.done = True
+        t.join()
 
 
 if watchdog:
