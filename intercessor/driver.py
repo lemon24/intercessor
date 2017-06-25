@@ -7,16 +7,19 @@ from .notebook import parse_notebook
 
 class Driver(object):
 
-    def __init__(self, notebook_path, completer):
+    def __init__(self, notebook_path, completer, watch):
         self.notebook_path = notebook_path
         self.completer = completer
+        self.watch = watch
         self.name = None
 
     def __enter__(self):
+        self.watch.__enter__()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return False
+        rv = self.watch.__exit__(exc_type, exc_val, exc_tb)
+        return rv
 
     def __call__(self, do):
         name = None

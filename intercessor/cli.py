@@ -44,7 +44,7 @@ def main():
 
     k = Kernel(
         make_target,
-        Driver(notebook_path, completer),
+        Driver(notebook_path, completer, watch(notebook_path)),
         confirm_terminate)
     k.parent_loop()
 
