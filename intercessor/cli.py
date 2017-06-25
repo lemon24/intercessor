@@ -3,8 +3,9 @@ import readline
 
 from ._compat import input
 from .kernel import Kernel
-from .notebook import make_target, make_driver
+from .notebook import make_target
 from .watch import watch
+from .driver import Driver
 
 
 def confirm_terminate():
@@ -43,8 +44,7 @@ def main():
 
     k = Kernel(
         make_target,
-        make_driver(notebook_path, completer),
-        watch(notebook_path),
+        Driver(notebook_path, completer),
         confirm_terminate)
     k.parent_loop()
 

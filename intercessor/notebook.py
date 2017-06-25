@@ -4,9 +4,6 @@ import re
 from collections import OrderedDict
 import traceback
 
-from ._compat import input
-from .watch import Alarm
-
 
 # We need to accomodate this kind of workflow:
 # https://ipython.org/ipython-doc/1/interactive/notebook.html#keyboard-shortcuts
@@ -35,42 +32,4 @@ def make_target():
             traceback.print_exc()
     return target
 
-
-class Namespace(object):
-
-    pass
-
-
-def make_driver(notebook_path, completer):
-    ns = Namespace()
-    ns.name = ns.old_name = None
-
-    def driver(do):
-        name = None
-        while not name:
-            try:
-                name = input('>>> at {!r}; run: '.format(ns.old_name)).strip()
-                ns.name = name
-                break
-            except EOFError:
-                print('>>> eof, ignoring for now')
-            except Alarm:
-                print('>>> file changed, should reload notebook')
-
-        with open(notebook_path) as f:
-            notebook_text = f.read()
-        cells = parse_notebook(notebook_text)
-
-        completer.words = list(cells)
-
-        if not ns.name.strip():
-            ns.name = ns.old_name
-        else:
-            ns.old_name = ns.name
-
-        do((ns.name, cells[ns.name]))
-
-        return False
-
-    return driver
 
