@@ -11,6 +11,7 @@ from .driver import Driver
 def confirm_terminate():
     try:
         rv = input("terminate? [y/N]: ")
+        return rv.strip().lower() == 'y'
     except EOFError:
         return False
     except KeyboardInterrupt:
