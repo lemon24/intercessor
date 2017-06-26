@@ -96,7 +96,7 @@ class StatWatch(BaseWatch):
             elif mtime > self._mtime:
                 self._mtime = mtime
                 self._alarm()
-            time.sleep(1)
+            time.sleep(.1)
 
     def _start(self):
         self._done = False
