@@ -40,6 +40,8 @@ def test_cli(tmpdir, monkeypatch):
         print(x)
     """))
 
+    time.sleep(1)
+
     p.sendline('one')
     p.expect('>>> running .+>>> at .+$')
     p.sendline('two')
@@ -52,6 +54,8 @@ def test_cli(tmpdir, monkeypatch):
         #: two
         print(x)
     """))
+
+    time.sleep(1)
 
     p.sendline()
     p.expect('>>> running .+>>> at .+$')
