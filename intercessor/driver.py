@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from ._compat import input
-from .watch import Alarm
+from .watch import WatchAlarm
 from .notebook import parse_notebook
 
 
@@ -14,22 +14,23 @@ class Driver(object):
         self.name = None
 
     def __enter__(self):
-        self.watch.__enter__()
+        self.watch.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        rv = self.watch.__exit__(exc_type, exc_val, exc_tb)
-        return rv
+        self.watch.stop()
+        return False
 
     def __call__(self, do):
         name = None
         while name is None:
             try:
-                name = input('>>> at {!r}; run: '.format(self.name)).strip()
+                with self.watch.alarm():
+                    name = input('>>> at {!r}; run: '.format(self.name)).strip()
                 break
             except EOFError:
                 print('>>> eof, ignoring for now')
-            except Alarm:
+            except WatchAlarm:
                 print('>>> file changed, should reload notebook')
 
         with open(self.notebook_path) as f:

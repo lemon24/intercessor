@@ -6,100 +6,98 @@ import time
 import threading
 
 
-try:
-    import watchdog.observers
-    import watchdog.events
-except ImportError:
-    watchdog = None
+class WatchAlarm(Exception): pass
 
 
-def alarm():
-    os.kill(os.getpid(), signal.SIGALRM)
-
-class Alarm(Exception): pass
-
-def raise_alarm(signum, frame):
-    raise Alarm
+_STOPPED = object()
+_STARTED = object()
+_ENABLED = object()
 
 
-@contextlib.contextmanager
-def watchdog_watch(path):
-    path = os.path.abspath(path)
+class BaseWatch(object):
 
-    def check_modification(filename):
-        if filename == path:
-            alarm()
+    def __init__(self, path):
+        self.path = os.path.abspath(path)
+        self._state = _STOPPED
+        self._old_signal_handler = None
 
-    class Handler(watchdog.events.FileSystemEventHandler):
+    @contextlib.contextmanager
+    def alarm(self):
+        assert self._state is _STARTED, "not started"
+        self._state = _ENABLED
+        try:
+            yield
+        finally:
+            assert self._state is _ENABLED, "not enabled"
+            self._state = _STARTED
 
-        def on_created(self, event):
-            check_modification(event.src_path)
+    def start(self):
+        assert self._state is _STOPPED, "already started"
+        self._state = _STARTED
+        self._old_signal_handler = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, self._signal_handler)
+        self._start()
 
-        def on_modified(self, event):
-            check_modification(event.src_path)
+    def stop(self):
+        assert self._state is _STARTED, "already stopped"
+        self._stop()
+        signal.signal(signal.SIGALRM, self._old_signal_handler)
+        self._old_signal_handler = None
+        self._state = _STOPPED
 
-        def on_moved(self, event):
-            check_modification(event.src_path)
-            check_modification(event.dest_path)
+    def _start(self):
+        raise NotImplementedError
 
-        def on_deleted(self, event):
-            check_modification(event.src_path)
+    def _stop(self):
+        raise NotImplementedError
 
-    observer = watchdog.observers.Observer()
-    observer.schedule(Handler(), os.path.dirname(path), recursive=False)
-    observer.start()
+    def _alarm(self):
+        if self._state is _ENABLED:
+            os.kill(os.getpid(), signal.SIGALRM)
 
-    old_signal_handler = signal.getsignal(signal.SIGALRM)
-    signal.signal(signal.SIGALRM, raise_alarm)
+    @staticmethod
+    def _signal_handler(signum, frame):
+        raise WatchAlarm
 
-    try:
-        yield
-    finally:
-        signal.signal(signal.SIGALRM, old_signal_handler)
+    def __enter__(self):
+        self.start()
+        return self
 
-        observer.stop()
-        observer.join()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+        return False
 
 
-@contextlib.contextmanager
-def stat_watch(path):
-    path = os.path.abspath(path)
+class StatWatch(BaseWatch):
 
-    class Namespace(object):
-        pass
+    def __init__(self, *args, **kwargs):
+        super(StatWatch, self).__init__(*args, **kwargs)
+        self._done = True
+        self._mtime = None
+        self._thread = None
 
-    ns = Namespace()
-    ns.mtime = None
-    ns.done = False
-
-    def target():
-        while not ns.done:
-            mtime = os.stat(path).st_mtime
-            if ns.mtime is None:
-                ns.mtime = mtime
+    def _target(self):
+        while not self._done:
+            mtime = os.stat(self.path).st_mtime
+            if self._mtime is None:
+                self._mtime = mtime
                 continue
-            elif mtime > ns.mtime:
-                ns.mtime = mtime
-                alarm()
+            elif mtime > self._mtime:
+                self._mtime = mtime
+                self._alarm()
             time.sleep(1)
 
-    t = threading.Thread(target=target)
-    t.start()
+    def _start(self):
+        self._done = False
+        self._thread = threading.Thread(target=self._target)
+        self._thread.start()
 
-    old_signal_handler = signal.getsignal(signal.SIGALRM)
-    signal.signal(signal.SIGALRM, raise_alarm)
-
-    try:
-        yield
-    finally:
-        signal.signal(signal.SIGALRM, old_signal_handler)
-
-        ns.done = True
-        t.join()
+    def _stop(self):
+        self._done = True
+        self._thread.join()
+        self._mtime = None
+        self._thread = None
 
 
-if watchdog:
-    watch = watchdog_watch
-else:
-    watch = stat_watch
+watch = StatWatch
 
