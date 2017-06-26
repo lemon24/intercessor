@@ -19,6 +19,7 @@ class BaseWatch(object):
     def __init__(self, path):
         self.path = os.path.abspath(path)
         self._state = _STOPPED
+        self._changed = False
         self._old_signal_handler = None
 
     @contextlib.contextmanager
@@ -45,6 +46,12 @@ class BaseWatch(object):
         self._old_signal_handler = None
         self._state = _STOPPED
 
+    @property
+    def changed(self):
+        rv = self._changed
+        self._changed = False
+        return rv
+
     def _start(self):
         raise NotImplementedError
 
@@ -54,6 +61,10 @@ class BaseWatch(object):
     def _alarm(self):
         if self._state is _ENABLED:
             os.kill(os.getpid(), signal.SIGALRM)
+        elif self._state is _STARTED:
+            self._changed = True
+        else:
+            assert False, "not started"
 
     @staticmethod
     def _signal_handler(signum, frame):
