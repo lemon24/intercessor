@@ -43,9 +43,10 @@ def main():
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
-    k = Kernel(
-        make_target,
-        Driver(notebook_path, completer, watch_file(notebook_path)),
-        confirm_terminate)
-    k.parent_loop()
+    watch = watch_file(notebook_path)
+    driver = Driver(notebook_path, completer, watch)
+    kernel = Kernel(make_target, driver, confirm_terminate)
+
+    with watch:
+        kernel.parent_loop()
 

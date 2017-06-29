@@ -14,14 +14,6 @@ class Driver(object):
         self.name = None
         self.cells = None
 
-    def __enter__(self):
-        self.watch.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.watch.stop()
-        return False
-
     def __call__(self, do):
         reload = False
         if self.cells is None:

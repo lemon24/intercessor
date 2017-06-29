@@ -60,14 +60,13 @@ class Kernel(object):
             args=(kernel_conn, self.make_target))
         process.start()
 
-        with self.driver:
-            while True:
-                try:
-                    if self.driver(do):
-                        break
-                except KeyboardInterrupt:
-                    if self.confirm_terminate():
-                        break
+        while True:
+            try:
+                if self.driver(do):
+                    break
+            except KeyboardInterrupt:
+                if self.confirm_terminate():
+                    break
 
         try:
             parent_conn.send(None)
