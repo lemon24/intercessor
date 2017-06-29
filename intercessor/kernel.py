@@ -79,3 +79,8 @@ class Kernel(object):
 
         log.info('parent: exiting parent loop')
 
+
+def run_kernel(make_target, driver, confirm_terminate):
+    kernel = Kernel(make_target, driver, confirm_terminate)
+    return kernel.parent_loop()
+

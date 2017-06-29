@@ -2,7 +2,7 @@ import sys
 import readline
 
 from ._compat import input
-from .kernel import Kernel
+from .kernel import run_kernel
 from .notebook import make_target
 from .watch import watch_file
 from .driver import Driver
@@ -45,8 +45,7 @@ def main():
 
     watch = watch_file(notebook_path)
     driver = Driver(notebook_path, completer, watch)
-    kernel = Kernel(make_target, driver, confirm_terminate)
 
     with watch:
-        kernel.parent_loop()
+        run_kernel(make_target, driver, confirm_terminate)
 
