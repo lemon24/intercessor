@@ -110,5 +110,5 @@ class StatWatch(BaseWatch):
         self._thread = None
 
 
-watch = StatWatch
+watch_file = StatWatch
 
