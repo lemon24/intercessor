@@ -1,8 +1,15 @@
 import multiprocessing
+import sys
 import logging
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
+
+
+# Use the 'spawn' start method if available; "safely forking a multithreaded
+# process is problematic", and we are using multiple threads.
+if sys.version_info[0] >= 3 and sys.version_info[1] >= 4:
+    multiprocessing = multiprocessing.get_context('spawn')
 
 
 class Kernel(object):
