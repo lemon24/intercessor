@@ -43,16 +43,31 @@ class Kernel(object):
 
             try:
                 while True:
-                    i = conn.recv()
+                    arg = conn.recv()
                     log.info("kernel: recv")
-                    if i is None:
+                    if arg is None:
                         done = True
                         break
 
-                    i = target(i)
+                    try:
+                        rv = target(arg)
+                    except Exception as e:
+                        log.exception('kernel: exception during target')
+                        rv = None
 
-                    conn.send(i)
-                    log.info("kernel: send")
+                    # We assume that the actual send never fails and that any
+                    # exceptions are raised during the pickling of rv prior
+                    # to sending it. I don't know how to distinguish between
+                    # pickling errors and actual send errors (without trying
+                    # to pickle rv before sending it). Even if I did, I'm not
+                    # sure how to recover from a failed actual send.
+                    try:
+                        conn.send(rv)
+                        log.info('kernel: send')
+                    except Exception as e:
+                        log.exception('kernel: exception during send')
+                        conn.send(None)
+                        log.info("kernel: send")
 
             except KeyboardInterrupt:
                 log.info("kernel: interrupted")
