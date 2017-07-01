@@ -22,10 +22,8 @@ class Kernel(object):
 
     make_debug_handler = staticmethod(lambda: logging.StreamHandler())
 
-    def __init__(self, make_target, driver, confirm_terminate, debug=False):
+    def __init__(self, make_target, debug=False):
         self.make_target = make_target
-        self.driver = driver
-        self.confirm_terminate = confirm_terminate
         self.debug = debug
         self.parent_conn = None
         self.kernel_conn = None
@@ -46,14 +44,15 @@ class Kernel(object):
 
             try:
                 while True:
-                    arg = conn.recv()
+                    args_tuple = conn.recv()
                     log.info("kernel: recv")
-                    if arg is None:
+                    if args_tuple is None:
                         done = True
                         break
 
+                    args, kwargs = args_tuple
                     try:
-                        rv = target(arg)
+                        rv = target(*args, **kwargs)
                     except Exception as e:
                         log.exception('kernel: exception during target')
                         rv = None
@@ -79,27 +78,18 @@ class Kernel(object):
         conn.close()
         log.info("kernel: exiting kernel loop")
 
-    def parent_loop(self):
-        def do(arg):
-            self.parent_conn.send(arg)
-            log.info("parent: send")
+    def __call__(self, *args, **kwargs):
+        self.parent_conn.send((args, kwargs))
+        log.info("parent: send")
 
-            while not self.parent_conn.poll(.1):
-                if not self.process.is_alive():
-                    log.info("parent: kernel died")
-                    raise KernelError("kernel died")
+        while not self.parent_conn.poll(.1):
+            if not self.process.is_alive():
+                log.info("parent: kernel died")
+                raise KernelError("kernel died")
 
-            rv = self.parent_conn.recv()
-            log.info("parent: recv")
-            return rv
-
-        while True:
-            try:
-                if self.driver(do):
-                    break
-            except KeyboardInterrupt:
-                if self.confirm_terminate():
-                    break
+        rv = self.parent_conn.recv()
+        log.info("parent: recv")
+        return rv
 
     def __enter__(self):
         self.parent_conn, self.kernel_conn = self.Pipe()
