@@ -12,6 +12,9 @@ if sys.version_info[0] >= 3 and sys.version_info[1] >= 4:
     multiprocessing = multiprocessing.get_context('spawn')
 
 
+class KernelError(Exception): pass
+
+
 class Kernel(object):
 
     Process = staticmethod(multiprocessing.Process)
@@ -80,6 +83,12 @@ class Kernel(object):
         def do(arg):
             self.parent_conn.send(arg)
             log.info("parent: send")
+
+            while not self.parent_conn.poll(.1):
+                if not self.process.is_alive():
+                    log.info("parent: kernel died")
+                    raise KernelError("kernel died")
+
             rv = self.parent_conn.recv()
             log.info("parent: recv")
             return rv
