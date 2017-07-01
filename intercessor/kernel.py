@@ -35,7 +35,7 @@ class Kernel(object):
             try:
                 while True:
                     i = conn.recv()
-                    log.info("kernel: recv %r", i)
+                    log.info("kernel: recv")
                     if i is None:
                         done = True
                         break
@@ -43,7 +43,7 @@ class Kernel(object):
                     i = target(i)
 
                     conn.send(i)
-                    log.info("kernel: send %r", i)
+                    log.info("kernel: send")
 
             except KeyboardInterrupt:
                 log.info("kernel: interrupted")
@@ -55,9 +55,9 @@ class Kernel(object):
     def parent_loop(self):
         def do(arg):
             self.parent_conn.send(arg)
-            log.info("parent: send %r", arg)
+            log.info("parent: send")
             rv = self.parent_conn.recv()
-            log.info("parent: recv %r", rv)
+            log.info("parent: recv")
             return rv
 
         while True:
