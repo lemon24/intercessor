@@ -17,16 +17,25 @@ class Kernel(object):
     Process = staticmethod(multiprocessing.Process)
     Pipe = staticmethod(multiprocessing.Pipe)
 
-    def __init__(self, make_target, driver, confirm_terminate):
+    make_debug_handler = staticmethod(lambda: logging.StreamHandler())
+
+    def __init__(self, make_target, driver, confirm_terminate, debug=False):
         self.make_target = make_target
         self.driver = driver
         self.confirm_terminate = confirm_terminate
+        self.debug = debug
         self.parent_conn = None
         self.kernel_conn = None
         self.process = None
+        self.debug_handler = None
+        self.old_log_level = None
 
     @classmethod
-    def kernel_loop(cls, conn, make_target):
+    def kernel_loop(cls, conn, make_target, debug):
+        if debug:
+            log.addHandler(cls.make_debug_handler())
+            log.setLevel(logging.DEBUG)
+
         target = make_target()
 
         done = False
@@ -73,8 +82,14 @@ class Kernel(object):
 
         self.process = self.Process(
             target=self.kernel_loop,
-            args=(self.kernel_conn, self.make_target))
+            args=(self.kernel_conn, self.make_target, self.debug))
         self.process.start()
+
+        if self.debug:
+            self.debug_handler = self.make_debug_handler()
+            log.addHandler(self.debug_handler)
+            self.old_log_level = log.level
+            log.setLevel(logging.DEBUG)
 
         return self
 
@@ -89,6 +104,13 @@ class Kernel(object):
             self.process.terminate()
 
         log.info('parent: exiting parent loop')
+
+        if self.debug:
+            log.setLevel(self.old_log_level)
+            self.old_log_level = None
+            log.removeHandler(self.debug_handler)
+            self.debug_handler = None
+
         return False
 
 
