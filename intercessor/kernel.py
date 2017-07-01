@@ -17,12 +17,13 @@ class Kernel(object):
     Process = staticmethod(multiprocessing.Process)
     Pipe = staticmethod(multiprocessing.Pipe)
 
-
     def __init__(self, make_target, driver, confirm_terminate):
         self.make_target = make_target
         self.driver = driver
         self.confirm_terminate = confirm_terminate
-
+        self.parent_conn = None
+        self.kernel_conn = None
+        self.process = None
 
     @classmethod
     def kernel_loop(cls, conn, make_target):
@@ -51,21 +52,13 @@ class Kernel(object):
         conn.close()
         log.info("kernel: exiting kernel loop")
 
-
     def parent_loop(self):
-        parent_conn, kernel_conn = self.Pipe()
-
         def do(arg):
-            parent_conn.send(arg)
+            self.parent_conn.send(arg)
             log.info("parent: send %r", arg)
-            rv = parent_conn.recv()
+            rv = self.parent_conn.recv()
             log.info("parent: recv %r", rv)
             return rv
-
-        process = self.Process(
-            target=self.kernel_loop,
-            args=(kernel_conn, self.make_target))
-        process.start()
 
         while True:
             try:
@@ -75,19 +68,29 @@ class Kernel(object):
                 if self.confirm_terminate():
                     break
 
+    def __enter__(self):
+        self.parent_conn, self.kernel_conn = self.Pipe()
+
+        self.process = self.Process(
+            target=self.kernel_loop,
+            args=(self.kernel_conn, self.make_target))
+        self.process.start()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         try:
-            parent_conn.send(None)
-            parent_conn.close()
+            self.parent_conn.send(None)
+            self.parent_conn.close()
             log.info('parent: waiting for kernel to exit')
-            process.join()
+            self.process.join()
         except KeyboardInterrupt:
             log.info('parent: terminating kernel')
-            process.terminate()
+            self.process.terminate()
 
         log.info('parent: exiting parent loop')
+        return False
 
 
-def run_kernel(make_target, driver, confirm_terminate):
-    kernel = Kernel(make_target, driver, confirm_terminate)
-    return kernel.parent_loop()
+run_kernel = Kernel
 

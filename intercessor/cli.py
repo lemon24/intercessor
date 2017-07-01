@@ -46,6 +46,7 @@ def main():
     watch = watch_file(notebook_path)
     driver = Driver(notebook_path, completer, watch)
 
-    with watch:
-        run_kernel(make_target, driver, confirm_terminate)
+    with run_kernel(make_target, driver, confirm_terminate) as kernel:
+        with watch:
+            kernel.parent_loop()
 
