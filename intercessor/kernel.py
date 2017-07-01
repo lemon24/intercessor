@@ -116,8 +116,7 @@ class Kernel(object):
         except KeyboardInterrupt:
             log.info('parent: terminating kernel')
             self.process.terminate()
-
-        log.info('parent: exiting parent loop')
+            self.process.join()
 
         if self.debug:
             log.setLevel(self.old_log_level)
