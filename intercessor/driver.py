@@ -1,4 +1,5 @@
 from __future__ import print_function
+import traceback
 
 from ._compat import input
 from .watch import WatchAlarm
@@ -51,4 +52,16 @@ class Driver(object):
 
         return False
 
+
+def make_target():
+    locals = {}
+    def target(arg):
+        name, text = arg
+        print('>>> running {!r}'.format(name))
+        print('\n'.join('... ' + l for l in text.splitlines()))
+        try:
+            exec(text, {}, locals)
+        except Exception:
+            traceback.print_exc()
+    return target
 

@@ -3,9 +3,8 @@ import readline
 
 from ._compat import input
 from .kernel import run_kernel
-from .notebook import make_target
 from .watch import watch_file
-from .driver import Driver
+from .driver import make_target, Driver
 
 
 def confirm_terminate():

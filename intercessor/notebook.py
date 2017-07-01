@@ -2,11 +2,6 @@ from __future__ import print_function
 
 import re
 from collections import OrderedDict
-import traceback
-
-
-# We need to accomodate this kind of workflow:
-# https://ipython.org/ipython-doc/1/interactive/notebook.html#keyboard-shortcuts
 
 
 def parse_notebook(text):
@@ -18,18 +13,4 @@ def parse_notebook(text):
     next(parts)
     parts = zip(parts, parts)
     return OrderedDict(parts)
-
-
-def make_target():
-    locals = {}
-    def target(arg):
-        name, text = arg
-        print('>>> running {!r}'.format(name))
-        print('\n'.join('... ' + l for l in text.splitlines()))
-        try:
-            exec(text, {}, locals)
-        except Exception:
-            traceback.print_exc()
-    return target
-
 
