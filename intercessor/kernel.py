@@ -79,25 +79,25 @@ class Kernel(object):
         log.info("kernel: exiting kernel loop")
 
     def __call__(self, *args, **kwargs):
+        assert self.process, "not started"
+        assert self.process.is_alive(), "not alive"
+        assert not self.parent_conn.closed, "closed"
+
         self.parent_conn.send((args, kwargs))
         log.info("parent: send")
 
         while not self.parent_conn.poll(.1):
             if not self.process.is_alive():
                 log.info("parent: kernel died")
+                self.parent_conn.close()
                 raise KernelError("kernel died")
 
         rv = self.parent_conn.recv()
         log.info("parent: recv")
         return rv
 
-    def __enter__(self):
-        self.parent_conn, self.kernel_conn = self.Pipe()
-
-        self.process = self.Process(
-            target=self.kernel_loop,
-            args=(self.kernel_conn, self.make_target, self.debug))
-        self.process.start()
+    def start(self):
+        assert not self.process or not self.process.is_alive(), "already started"
 
         if self.debug:
             self.debug_handler = self.make_debug_handler()
@@ -105,25 +105,49 @@ class Kernel(object):
             self.old_log_level = log.level
             log.setLevel(logging.DEBUG)
 
-        return self
+        self.parent_conn, self.kernel_conn = self.Pipe()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.process = self.Process(
+            target=self.kernel_loop,
+            args=(self.kernel_conn, self.make_target, self.debug))
+        self.process.start()
+
+    def close(self):
+        assert self.process, "not started"
         try:
-            self.parent_conn.send(None)
-            self.parent_conn.close()
-            log.info('parent: waiting for kernel to exit')
-            self.process.join()
-        except KeyboardInterrupt:
-            log.info('parent: terminating kernel')
-            self.process.terminate()
-            self.process.join()
+            if not self.parent_conn.closed:
+                self.parent_conn.send(None)
+                log.info('parent: send None')
+                self.parent_conn.close()
+        except OSError:
+            pass
 
+    def terminate(self):
+        assert self.process, "not stared"
+        self.process.terminate()
+
+    def join(self):
+        assert self.process, "not started"
+        self.process.join()
         if self.debug:
             log.setLevel(self.old_log_level)
             self.old_log_level = None
             log.removeHandler(self.debug_handler)
             self.debug_handler = None
 
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            self.close()
+            log.info('parent: waiting for kernel to exit')
+            self.join()
+        except KeyboardInterrupt:
+            log.info('parent: terminating kernel')
+            self.terminate()
+            self.join()
         return False
 
 
