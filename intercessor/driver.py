@@ -1,10 +1,10 @@
 from __future__ import print_function
 import traceback
 
-from ._compat import input
 from .watch import watch_file, WatchAlarm
 from .notebook import parse_notebook
 from .kernel import run_kernel, KernelError
+from .utils import prompt, confirm
 
 class Driver(object):
 
@@ -13,17 +13,10 @@ class Driver(object):
         self.completer = completer
 
     def get_input(self, old_name):
-        name = None
-        while name is None:
-            try:
-                name = input('>>> at {!r}; run: '.format(old_name)).strip()
-            except EOFError:
-                print()
-                return None
-            except Exception:
-                print()
-                raise
-        return name
+        try:
+            return prompt('>>> at {!r}; run: '.format(old_name)).strip()
+        except EOFError:
+            return None
 
     def loop(self):
         watch = watch_file(self.notebook_path)
@@ -80,7 +73,7 @@ class Driver(object):
                         kernel(cell)
 
                     except KeyboardInterrupt:
-                        print("^C\n>>> interrupted")
+                        print(">>> interrupted")
 
                     except KernelError:
                         if confirm(">>> kernel died; exit?"):
@@ -96,20 +89,4 @@ def make_target():
         except Exception:
             traceback.print_exc()
     return target
-
-
-def confirm(message, default=False):
-    options = "Y/n" if default else "y/N"
-    try:
-        rv = input("{} [{}]: ".format(message, options))
-        rv = rv.strip().lower()
-        if not rv:
-            return default
-        return rv == 'y'
-    except EOFError:
-        print()
-        return default
-    except KeyboardInterrupt:
-        print()
-        return not default
 
