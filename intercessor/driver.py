@@ -35,28 +35,20 @@ class Driver(object):
             with run_kernel(make_target) as kernel, watch:
                 print(">>> starting kernel")
 
-                reload = False
                 while True:
                     try:
-                        if reload or cells is None:
+                        if watch.changed or cells is None:
                             print(">>> reloading notebook")
                             with open(self.notebook_path) as f:
                                 notebook_text = f.read()
                             cells = parse_notebook(notebook_text)
                             self.completer.words = list(cells)
-                            reload = False
-
-                        if watch.changed:
-                            print(">>> file changed during cell run")
-                            reload = True
-                            continue
 
                         try:
                             with watch.alarm():
                                 name = self.get_input(old_name)
                         except WatchAlarm:
                             print('>>> file changed during input()')
-                            reload = True
                             continue
 
                         if old_name is not None and old_name not in cells:
