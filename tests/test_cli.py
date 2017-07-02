@@ -61,11 +61,11 @@ def test_cli(tmpdir, monkeypatch):
     p.expect('>>> running .+>>> at .+$')
     assert p.after.splitlines()[-2] == '2'
 
-    p.sendintr()
+    p.sendeof()
     time.sleep(.1)
     assert p.isalive()
 
-    p.sendintr()
+    p.sendeof()
     time.sleep(1)
     assert not p.isalive()
 

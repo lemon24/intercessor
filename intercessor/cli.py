@@ -1,10 +1,7 @@
 import sys
 import readline
 
-from ._compat import input
-from .kernel import run_kernel
-from .watch import watch_file
-from .driver import make_target, Driver
+from .driver import Driver
 
 
 class Completer(object):
@@ -32,10 +29,5 @@ def main():
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
-    watch = watch_file(notebook_path)
-
-    with run_kernel(make_target) as kernel:
-        driver = Driver(notebook_path, kernel, completer, watch)
-        with watch:
-            driver()
-
+    driver = Driver(notebook_path, completer)
+    driver.loop()
