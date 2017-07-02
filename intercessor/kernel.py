@@ -32,7 +32,7 @@ class Kernel(object):
         self._old_log_level = None
 
     @classmethod
-    def kernel_loop(cls, conn, make_target, debug):
+    def _kernel_loop(cls, conn, make_target, debug):
         if debug:
             log.addHandler(cls.make_debug_handler())
             log.setLevel(logging.DEBUG)
@@ -108,7 +108,7 @@ class Kernel(object):
         self._parent_conn, self._kernel_conn = self.Pipe()
 
         self._process = self.Process(
-            target=self.kernel_loop,
+            target=self._kernel_loop,
             args=(self._kernel_conn, self.make_target, self.debug))
         self._process.start()
 
