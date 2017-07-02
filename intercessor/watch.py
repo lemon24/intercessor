@@ -60,6 +60,7 @@ class BaseWatch(object):
 
     def _alarm(self):
         if self._state is _ENABLED:
+            self._changed = True
             os.kill(os.getpid(), signal.SIGALRM)
         elif self._state is _STARTED:
             self._changed = True
