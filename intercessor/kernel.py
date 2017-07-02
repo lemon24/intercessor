@@ -25,11 +25,11 @@ class Kernel(object):
     def __init__(self, make_target, debug=False):
         self.make_target = make_target
         self.debug = debug
-        self.parent_conn = None
-        self.kernel_conn = None
-        self.process = None
-        self.debug_handler = None
-        self.old_log_level = None
+        self._parent_conn = None
+        self._kernel_conn = None
+        self._process = None
+        self._debug_handler = None
+        self._old_log_level = None
 
     @classmethod
     def kernel_loop(cls, conn, make_target, debug):
@@ -79,61 +79,61 @@ class Kernel(object):
         log.info("kernel: exiting kernel loop")
 
     def __call__(self, *args, **kwargs):
-        assert self.process, "not started"
-        assert self.process.is_alive(), "not alive"
-        assert not self.parent_conn.closed, "closed"
+        assert self._process, "not started"
+        assert self._process.is_alive(), "not alive"
+        assert not self._parent_conn.closed, "closed"
 
-        self.parent_conn.send((args, kwargs))
+        self._parent_conn.send((args, kwargs))
         log.info("parent: send")
 
-        while not self.parent_conn.poll(.1):
-            if not self.process.is_alive():
+        while not self._parent_conn.poll(.1):
+            if not self._process.is_alive():
                 log.info("parent: kernel died")
-                self.parent_conn.close()
+                self._parent_conn.close()
                 raise KernelError("kernel died")
 
-        rv = self.parent_conn.recv()
+        rv = self._parent_conn.recv()
         log.info("parent: recv")
         return rv
 
     def start(self):
-        assert not self.process or not self.process.is_alive(), "already started"
+        assert not self._process or not self._process.is_alive(), "already started"
 
         if self.debug:
-            self.debug_handler = self.make_debug_handler()
-            log.addHandler(self.debug_handler)
-            self.old_log_level = log.level
+            self._debug_handler = self.make_debug_handler()
+            log.addHandler(self._debug_handler)
+            self._old_log_level = log.level
             log.setLevel(logging.DEBUG)
 
-        self.parent_conn, self.kernel_conn = self.Pipe()
+        self._parent_conn, self._kernel_conn = self.Pipe()
 
-        self.process = self.Process(
+        self._process = self.Process(
             target=self.kernel_loop,
-            args=(self.kernel_conn, self.make_target, self.debug))
-        self.process.start()
+            args=(self._kernel_conn, self.make_target, self.debug))
+        self._process.start()
 
     def close(self):
-        assert self.process, "not started"
+        assert self._process, "not started"
         try:
-            if not self.parent_conn.closed:
-                self.parent_conn.send(None)
+            if not self._parent_conn.closed:
+                self._parent_conn.send(None)
                 log.info('parent: send None')
-                self.parent_conn.close()
+                self._parent_conn.close()
         except OSError:
             pass
 
     def terminate(self):
-        assert self.process, "not stared"
-        self.process.terminate()
+        assert self._process, "not stared"
+        self._process.terminate()
 
     def join(self):
-        assert self.process, "not started"
-        self.process.join()
+        assert self._process, "not started"
+        self._process.join()
         if self.debug:
-            log.setLevel(self.old_log_level)
-            self.old_log_level = None
-            log.removeHandler(self.debug_handler)
-            self.debug_handler = None
+            log.setLevel(self._old_log_level)
+            self._old_log_level = None
+            log.removeHandler(self._debug_handler)
+            self._debug_handler = None
 
     def __enter__(self):
         self.start()
