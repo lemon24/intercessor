@@ -1,5 +1,9 @@
 import sys
-import readline
+
+try:
+    import readline
+except ImportError:
+    readline = None
 
 from .driver import Driver
 
@@ -22,10 +26,16 @@ class Completer(object):
         return rv
 
 
+class DummyCompleter(object):
+
+    def __init__(self):
+        self.words = []
+
+
 def main():
     notebook_path = sys.argv[1]
 
-    completer = Completer()
+    completer = Completer() if readline else DummyCompleter()
     readline.set_completer(completer)
     readline.parse_and_bind('tab: complete')
 
