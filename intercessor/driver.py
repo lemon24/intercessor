@@ -82,10 +82,10 @@ class Driver(object):
 
 
 def make_target():
-    locals = {}
+    context = {}
     def target(text):
         try:
-            exec(text, {}, locals)
+            exec(text, context)
         except Exception:
             traceback.print_exc()
     return target
