@@ -25,7 +25,7 @@ class Driver(object):
         cells = None
         done = False
         while not done:
-            with run_kernel(make_target) as kernel, watch:
+            with run_kernel(Target) as kernel, watch:
                 print(">>> starting kernel")
 
                 while True:
@@ -81,12 +81,14 @@ class Driver(object):
                         break
 
 
-def make_target():
-    context = {}
-    def target(text):
+class Target(object):
+
+    def __init__(self):
+        self.context = {}
+
+    def __call__(self, text):
         try:
-            exec(text, context)
+            exec(text, self.context)
         except Exception:
             traceback.print_exc()
-    return target
 
