@@ -36,8 +36,9 @@ def main():
     notebook_path = sys.argv[1]
 
     completer = Completer() if readline else DummyCompleter()
-    readline.set_completer(completer)
-    readline.parse_and_bind('tab: complete')
+    if readline:
+        readline.set_completer(completer)
+        readline.parse_and_bind('tab: complete')
 
     driver = Driver(notebook_path, completer)
     driver.loop()
