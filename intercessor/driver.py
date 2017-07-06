@@ -11,74 +11,71 @@ class Driver(object):
     def __init__(self, notebook_path, completer):
         self.notebook_path = notebook_path
         self.completer = completer
-
-    def get_input(self, old_name):
-        try:
-            return prompt('>>> at {!r}; run: '.format(old_name)).strip()
-        except EOFError:
-            return None
+        self.old_name = None
+        self.cells = None
 
     def loop(self):
         watch = watch_file(self.notebook_path)
-
-        old_name = None
-        cells = None
-        done = False
-        while not done:
-            with run_kernel(Target) as kernel, watch:
-                print(">>> starting kernel")
-
-                while True:
-                    try:
-                        if watch.changed or cells is None:
-                            print(">>> reloading notebook")
-                            with open(self.notebook_path) as f:
-                                notebook_text = f.read()
-                            cells = parse_notebook(notebook_text)
-                            self.completer.words = list(cells)
-
-                        try:
-                            with watch.alarm():
-                                name = self.get_input(old_name)
-                        except WatchAlarm:
-                            print('>>> file changed during input()')
-                            continue
-
-                        if old_name is not None and old_name not in cells:
-                            print(">>> cell does not exist anymore:", old_name)
-                            old_name = None
-                            continue
-
-                        if name is None:
-                            if confirm(">>> exit?", True):
-                                done = True
-                                print(">>> waiting for kernel to exit")
-                                break
-                            continue
-                        elif not name:
-                            if old_name is None:
-                                continue
-                            name = old_name
-                        else:
-                            if name not in cells:
-                                print(">>> cell does not exist:", name)
-                                continue
-                            old_name = name
-
-                        cell = cells[name]
-
-                        print('>>> running {!r}'.format(name))
-                        print('\n'.join('... ' + l for l in cell.splitlines()))
-
-                        kernel(cell)
-
-                    except KeyboardInterrupt:
-                        print(">>> interrupted")
-
-                    except KernelError:
-                        if confirm(">>> kernel died; exit?"):
-                            done = True
+        self.old_name = None
+        self.cells = None
+        while True:
+            try:
+                with run_kernel(Target) as kernel, watch:
+                    print(">>> starting kernel")
+                    if self.command_loop(kernel, watch):
+                        print(">>> waiting for kernel to exit")
                         break
+            except KernelError:
+                if confirm(">>> kernel died; exit?"):
+                    break
+
+    def command_loop(self, kernel, watch):
+        while True:
+            try:
+                if watch.changed or self.cells is None:
+                    print(">>> reloading notebook")
+                    with open(self.notebook_path) as f:
+                        notebook_text = f.read()
+                    self.cells = parse_notebook(notebook_text)
+                    self.completer.words = list(self.cells)
+
+                try:
+                    with watch.alarm():
+                        try:
+                            name = prompt('>>> at {!r}; run: '.format(self.old_name)).strip()
+                        except EOFError:
+                            name = None
+                except WatchAlarm:
+                    print('>>> file changed during input()')
+                    continue
+
+                if self.old_name is not None and self.old_name not in self.cells:
+                    print(">>> cell does not exist anymore:", self.old_name)
+                    self.old_name = None
+                    continue
+
+                if name is None:
+                    if confirm(">>> exit?", True):
+                        return True
+                    continue
+                elif not name:
+                    if self.old_name is None:
+                        continue
+                    name = self.old_name
+                else:
+                    if name not in self.cells:
+                        print(">>> cell does not exist:", name)
+                        continue
+                    self.old_name = name
+
+                cell = self.cells[name]
+
+                print('>>> running {!r}'.format(name))
+                print('\n'.join('... ' + l for l in cell.splitlines()))
+
+                kernel(cell)
+            except KeyboardInterrupt:
+                print(">>> interrupted")
 
 
 class Target(object):
