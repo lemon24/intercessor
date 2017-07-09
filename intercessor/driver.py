@@ -1,10 +1,10 @@
-from __future__ import print_function
 import traceback
 
 from .watch import watch_file, WatchAlarm
 from .notebook import parse_notebook
 from .kernel import run_kernel, KernelError
-from .utils import prompt, confirm
+from .utils import echo, prompt, confirm
+
 
 class Driver(object):
 
@@ -21,9 +21,9 @@ class Driver(object):
         while True:
             try:
                 with run_kernel(Target) as kernel, watch:
-                    print(">>> starting kernel")
+                    echo(">>> starting kernel")
                     if self.command_loop(kernel, watch):
-                        print(">>> waiting for kernel to exit")
+                        echo(">>> waiting for kernel to exit")
                         break
             except KernelError:
                 if confirm(">>> kernel died; exit?"):
@@ -33,7 +33,7 @@ class Driver(object):
         while True:
             try:
                 if watch.changed or self.cells is None:
-                    print(">>> reloading notebook")
+                    echo(">>> reloading notebook")
                     with open(self.notebook_path) as f:
                         notebook_text = f.read()
                     self.cells = parse_notebook(notebook_text)
@@ -46,11 +46,11 @@ class Driver(object):
                         except EOFError:
                             name = None
                 except WatchAlarm:
-                    print('>>> file changed during input()')
+                    echo('>>> file changed during input()')
                     continue
 
                 if self.old_name is not None and self.old_name not in self.cells:
-                    print(">>> cell does not exist anymore:", self.old_name)
+                    echo(">>> cell does not exist anymore:", self.old_name)
                     self.old_name = None
                     continue
 
@@ -64,18 +64,18 @@ class Driver(object):
                     name = self.old_name
                 else:
                     if name not in self.cells:
-                        print(">>> cell does not exist:", name)
+                        echo(">>> cell does not exist:", name)
                         continue
                     self.old_name = name
 
                 cell = self.cells[name]
 
-                print('>>> running {!r}'.format(name))
-                print('\n'.join('... ' + l for l in cell.splitlines()))
+                echo('>>> running {!r}'.format(name))
+                echo('\n'.join('... ' + l for l in cell.splitlines()))
 
                 kernel(cell)
             except KeyboardInterrupt:
-                print(">>> interrupted")
+                echo(">>> interrupted")
 
 
 class Target(object):

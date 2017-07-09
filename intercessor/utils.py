@@ -33,3 +33,7 @@ def confirm(text, default=False):
         print('^C')
         return not default
 
+
+def echo(*args, **kwargs):
+    print(*args, **kwargs)
+
