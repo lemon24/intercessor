@@ -6,7 +6,7 @@ from .kernel import run_kernel, KernelError
 from .utils import echo, prompt, confirm
 
 
-class Driver(object):
+class BaseDriver(object):
 
     def __init__(self, notebook_path, completer):
         self.notebook_path = notebook_path
@@ -21,41 +21,41 @@ class Driver(object):
         while True:
             try:
                 with run_kernel(Target) as kernel, watch:
-                    echo(">>> starting kernel")
+                    self.notify_kernel_starting()
                     if self.command_loop(kernel, watch):
-                        echo(">>> waiting for kernel to exit")
+                        self.notify_kernel_exiting()
                         break
             except KernelError:
-                if confirm(">>> kernel died; exit?"):
+                if not self.confirm_restart():
                     break
 
     def command_loop(self, kernel, watch):
         while True:
             try:
                 if watch.changed or self.cells is None:
-                    echo(">>> reloading notebook")
                     with open(self.notebook_path) as f:
                         notebook_text = f.read()
                     self.cells = parse_notebook(notebook_text)
                     self.completer.words = list(self.cells)
+                    self.notify_notebook_reloaded()
 
                 try:
                     with watch.alarm():
                         try:
-                            name = prompt('>>> at {!r}; run: '.format(self.old_name)).strip()
+                            name = self.read_command().strip()
                         except EOFError:
                             name = None
                 except WatchAlarm:
-                    echo('>>> file changed during input()')
+                    self.notify_notebook_changed_during_input()
                     continue
 
                 if self.old_name is not None and self.old_name not in self.cells:
-                    echo(">>> cell does not exist anymore:", self.old_name)
+                    self.notify_cell_gone()
                     self.old_name = None
                     continue
 
                 if name is None:
-                    if confirm(">>> exit?", True):
+                    if self.confirm_exit():
                         return True
                     continue
                 elif not name:
@@ -64,18 +64,86 @@ class Driver(object):
                     name = self.old_name
                 else:
                     if name not in self.cells:
-                        echo(">>> cell does not exist:", name)
+                        self.notify_cell_does_not_exist()
                         continue
                     self.old_name = name
 
                 cell = self.cells[name]
 
-                echo('>>> running {!r}'.format(name))
-                echo('\n'.join('... ' + l for l in cell.splitlines()))
-
+                self.notify_cell_running(name, cell)
                 kernel(cell)
             except KeyboardInterrupt:
-                echo(">>> interrupted")
+                self.notify_interrupted()
+
+    def notify_kernel_starting(self):
+        pass
+
+    def notify_kernel_exiting(self):
+        pass
+
+    def notify_notebook_reloaded(self):
+        pass
+
+    def notify_notebook_changed_during_input(self):
+        pass
+
+    def notify_cell_gone(self):
+        pass
+
+    def notify_cell_does_not_exist(self):
+        pass
+
+    def notify_cell_running(self, name, cell):
+        pass
+
+    def notify_interrupted(self):
+        pass
+
+    def read_command(self):
+        return prompt(':')
+
+    def confirm_exit(self):
+        return True
+
+    def confirm_restart(self):
+        return False
+
+
+class Driver(BaseDriver):
+
+    def notify_kernel_starting(self):
+        echo(">>> starting kernel")
+
+    def notify_kernel_exiting(self):
+        echo(">>> waiting for kernel to exit")
+
+    def notify_notebook_reloaded(self):
+        echo(">>> reloaded notebook")
+
+    def notify_notebook_changed_during_input(self):
+        echo()
+
+    def notify_cell_gone(self):
+        echo(">>> cell does not exist anymore:", self.old_name)
+
+    def notify_cell_does_not_exist(self):
+        echo(">>> cell does not exist:", name)
+
+    def notify_cell_running(self, name, cell):
+        echo('>>> running {!r}'.format(name))
+        echo('\n'.join('... ' + l for l in cell.splitlines()))
+
+    def notify_interrupted(self):
+        echo(">>> interrupted")
+
+    def read_command(self):
+        return prompt('>>> at {!r}; run: '.format(self.old_name)).strip()
+
+    def confirm_exit(self):
+        return confirm(">>> exit?", True)
+
+    def confirm_restart(self):
+        return not confirm(">>> kernel died; exit?")
 
 
 class Target(object):
