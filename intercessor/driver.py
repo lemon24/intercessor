@@ -51,24 +51,20 @@ class BaseDriver(object):
                     self.completer.words = list(self.cells)
                     self.notify_notebook_reloaded()
 
-                try:
-                    with watch.alarm():
-                        try:
-                            name = self.read_command().strip()
-                        except EOFError:
-                            name = None
-                except WatchAlarm:
-                    self.notify_notebook_changed_during_input()
-                    continue
-
                 if self.old_name is not None and self.old_name not in self.cells:
                     self.notify_cell_gone()
                     self.old_name = None
                     continue
 
-                if name is None:
+                try:
+                    with watch.alarm():
+                        name = self.read_command().strip()
+                except EOFError:
                     if self.confirm_exit():
                         return True
+                    continue
+                except WatchAlarm:
+                    self.notify_notebook_changed_during_input()
                     continue
 
                 self.one_command(name)
