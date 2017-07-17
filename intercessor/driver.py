@@ -1,4 +1,5 @@
 import traceback
+import contextlib
 
 from .watch import watch_file, WatchAlarm
 from .notebook import parse_notebook
@@ -13,6 +14,17 @@ class BaseDriver(object):
         self.completer = completer
         self.old_name = None
         self.cells = None
+        self.kernel = None
+
+    @contextlib.contextmanager
+    def run_kernel(self):
+        assert self.kernel is None
+        try:
+            with run_kernel(Target) as kernel:
+                self.kernel = kernel
+                yield
+        finally:
+            self.kernel = None
 
     def loop(self):
         watch = watch_file(self.notebook_path)
@@ -20,16 +32,16 @@ class BaseDriver(object):
         self.cells = None
         while True:
             try:
-                with run_kernel(Target) as kernel, watch:
-                    self.notify_kernel_starting()
-                    if self.command_loop(kernel, watch):
+                self.notify_kernel_starting()
+                with self.run_kernel(), watch:
+                    if self.command_loop(watch):
                         self.notify_kernel_exiting()
                         break
             except KernelError:
                 if not self.confirm_restart():
                     break
 
-    def command_loop(self, kernel, watch):
+    def command_loop(self, watch):
         while True:
             try:
                 if watch.changed or self.cells is None:
@@ -58,22 +70,26 @@ class BaseDriver(object):
                     if self.confirm_exit():
                         return True
                     continue
-                elif not name:
-                    if self.old_name is None:
-                        continue
-                    name = self.old_name
-                else:
-                    if name not in self.cells:
-                        self.notify_cell_does_not_exist()
-                        continue
-                    self.old_name = name
 
-                cell = self.cells[name]
-
-                self.notify_cell_running(name, cell)
-                kernel(cell)
+                self.one_command(name)
             except KeyboardInterrupt:
                 self.notify_interrupted()
+
+    def one_command(self, name):
+        if not name:
+            if self.old_name is None:
+                return
+            name = self.old_name
+        else:
+            if name not in self.cells:
+                self.notify_cell_does_not_exist()
+                return
+            self.old_name = name
+
+        cell = self.cells[name]
+
+        self.notify_cell_running(name, cell)
+        self.kernel(cell)
 
     def notify_kernel_starting(self):
         pass
