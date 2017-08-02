@@ -15,6 +15,7 @@ class BaseDriver(object):
         self.old_name = None
         self.cells = None
         self.kernel = None
+        self.watch = None
 
     @contextlib.contextmanager
     def run_kernel(self):
@@ -26,25 +27,35 @@ class BaseDriver(object):
         finally:
             self.kernel = None
 
+    @contextlib.contextmanager
+    def run_watch(self):
+        assert self.watch is None
+        try:
+            with watch_file(self.notebook_path) as watch:
+                self.watch = watch
+                yield
+        finally:
+            self.watch = None
+
     def loop(self):
-        watch = watch_file(self.notebook_path)
         self.old_name = None
         self.cells = None
-        while True:
-            try:
-                self.notify_kernel_starting()
-                with self.run_kernel(), watch:
-                    if self.command_loop(watch):
-                        self.notify_kernel_exiting()
+        with self.run_watch():
+            while True:
+                try:
+                    self.notify_kernel_starting()
+                    with self.run_kernel():
+                        if self.command_loop():
+                            self.notify_kernel_exiting()
+                            break
+                except KernelError:
+                    if not self.confirm_restart():
                         break
-            except KernelError:
-                if not self.confirm_restart():
-                    break
 
-    def command_loop(self, watch):
+    def command_loop(self):
         while True:
             try:
-                if watch.changed or self.cells is None:
+                if self.watch.changed or self.cells is None:
                     with open(self.notebook_path) as f:
                         notebook_text = f.read()
                     self.cells = parse_notebook(notebook_text)
@@ -57,7 +68,7 @@ class BaseDriver(object):
                     continue
 
                 try:
-                    with watch.alarm():
+                    with self.watch.alarm():
                         name = self.read_command().strip()
                 except EOFError:
                     if self.confirm_exit():
