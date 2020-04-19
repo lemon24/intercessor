@@ -62,10 +62,12 @@ def test_cli(tmpdir, monkeypatch):
     assert p.after.splitlines()[-2] == '2'
 
     p.sendeof()
+    p.expect('>>> exit\? +')
     time.sleep(.1)
     assert p.isalive()
 
     p.sendeof()
-    time.sleep(1)
+    p.expect('>>> waiting for kernel to exit')
+    time.sleep(.1)
     assert not p.isalive()
 
