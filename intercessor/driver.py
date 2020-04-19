@@ -89,7 +89,7 @@ class BaseDriver(object):
             name = self.old_name
         else:
             if name not in self.cells:
-                self.notify_cell_does_not_exist()
+                self.notify_cell_does_not_exist(name)
                 return
             self.old_name = name
 
@@ -113,7 +113,7 @@ class BaseDriver(object):
     def notify_cell_gone(self):
         pass
 
-    def notify_cell_does_not_exist(self):
+    def notify_cell_does_not_exist(self, name):
         pass
 
     def notify_cell_running(self, name, cell):
@@ -149,7 +149,7 @@ class Driver(BaseDriver):
     def notify_cell_gone(self):
         echo(">>> cell does not exist anymore:", self.old_name)
 
-    def notify_cell_does_not_exist(self):
+    def notify_cell_does_not_exist(self, name):
         echo(">>> cell does not exist:", name)
 
     def notify_cell_running(self, name, cell):
