@@ -1,6 +1,7 @@
 import multiprocessing
 import sys
 import logging
+import signal
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -39,42 +40,64 @@ class Kernel(object):
 
         target = make_target()
 
-        done = False
-        while not done:
+        # When SIGINT is sent to the parent, all processes in its
+        # process group receive it. By default, SIGINT manifests as a
+        # KeyboardInterrupt being raised.
+        #
+        # On Linux, wrapping the whole "while True:" in a try/except
+        # KeyboardInterrupt is enough to handle it.
+        #
+        # On Darwin (macOS), however, we get a second KeyboardInterrupt
+        # in the exception handler for the first one (?).
+        # In order to handle this, we ignore SIGINT in "kernel mode"
+        # and use the default handler only in "user mode",
+        # i.e. while running target.
+        old_sigint_handler = signal.getsignal(signal.SIGINT)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-            try:
-                while True:
-                    args_tuple = conn.recv()
-                    log.info("kernel: recv")
-                    if args_tuple is None:
-                        done = True
-                        break
+        try:
+            done = False
+            while not done:
 
-                    args, kwargs = args_tuple
-                    try:
-                        rv = target(*args, **kwargs)
-                    except Exception as e:
-                        log.exception('kernel: exception during target')
-                        rv = None
+                    while True:
+                        args_tuple = conn.recv()
+                        log.info("kernel: recv")
+                        if args_tuple is None:
+                            done = True
+                            break
 
-                    # We assume that the actual send never fails and that any
-                    # exceptions are raised during the pickling of rv prior
-                    # to sending it. I don't know how to distinguish between
-                    # pickling errors and actual send errors (without trying
-                    # to pickle rv before sending it). Even if I did, I'm not
-                    # sure how to recover from a failed actual send.
-                    try:
-                        conn.send(rv)
-                        log.info('kernel: send')
-                    except Exception as e:
-                        log.exception('kernel: exception during send')
-                        conn.send(None)
-                        log.info("kernel: send")
+                        args, kwargs = args_tuple
 
-            except KeyboardInterrupt:
-                log.info("kernel: interrupted")
-                pass
+                        signal.signal(signal.SIGINT, old_sigint_handler)
+                        try:
+                            rv = target(*args, **kwargs)
+                        except Exception as e:
+                            log.exception('kernel: exception during target')
+                            rv = None
+                        except KeyboardInterrupt:
+                            log.info("kernel: interrupted during target")
+                            continue
+                        finally:
+                            signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+                        # We assume that the actual send never fails and that any
+                        # exceptions are raised during the pickling of rv prior
+                        # to sending it. I don't know how to distinguish between
+                        # pickling errors and actual send errors (without trying
+                        # to pickle rv before sending it). Even if I did, I'm not
+                        # sure how to recover from a failed actual send.
+                        try:
+                            conn.send(rv)
+                            log.info('kernel: send')
+                        except Exception as e:
+                            log.exception('kernel: exception during send')
+                            conn.send(None)
+                            log.info("kernel: send")
+
+        finally:
+            signal.signal(signal.SIGINT, old_sigint_handler)
+
+        # TODO: Should this be in finally: too?
         conn.close()
         log.info("kernel: exiting kernel loop")
 
