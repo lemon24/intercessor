@@ -21,7 +21,7 @@ class BaseDriver(object):
     def run_kernel(self):
         assert self.kernel is None
         try:
-            with run_kernel(Target, True) as kernel:
+            with run_kernel(Target) as kernel:
                 self.kernel = kernel
                 yield
         finally:
